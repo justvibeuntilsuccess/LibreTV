@@ -486,7 +486,7 @@ function VodSourceRow({
           <div className="flex flex-wrap items-center gap-y-1 text-sm font-medium text-content">
             {api.name}
             <PlaybackStatusBadge url={api.url} />
-            {api.isAdult && <span className="text-pink-400 text-xs ml-1">(18+)</span>}
+            {api.isAdult && <span className="text-pink-400 text-xs">(A)</span>}
             {isEnv && (
               <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-chip text-faint align-middle">
                 部署者预置

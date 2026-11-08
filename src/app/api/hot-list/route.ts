@@ -9,13 +9,15 @@ export async function GET(req: Request) {
   const guarded = guardRequest(req);
   if (guarded) return guarded;
 
-  const id = new URL(req.url).searchParams.get('id') || '';
+  const sp = new URL(req.url).searchParams;
+  const id = sp.get('id') || '';
+  const sub = sp.get('sub') || '';
   if (!isHotListId(id)) {
     return NextResponse.json({ error: `未知榜单: ${id.slice(0, 30)}` }, { status: 400 });
   }
 
   try {
-    const items = await fetchHotList(id);
+    const items = await fetchHotList(id, sub);
     return NextResponse.json({ items });
   } catch (err) {
     return NextResponse.json(

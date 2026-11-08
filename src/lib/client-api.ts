@@ -183,8 +183,9 @@ export const api = {
   bangumiCalendar: (signal?: AbortSignal) => request<BangumiCalendarResponse>('/api/bangumi/calendar', { signal }),
 
   /** 影视热榜（60s API 免 key）：豆瓣周榜五个类目 + 百度热播剧 */
-  hotList: (id: string, signal?: AbortSignal) => {
+  hotList: (id: string, sub?: string, signal?: AbortSignal) => {
     const sp = new URLSearchParams({ id });
+    if (sub) sp.set('sub', sub);
     return request<DoubanResponse>(`/api/hot-list?${sp.toString()}`, { signal });
   },
 

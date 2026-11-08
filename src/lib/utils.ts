@@ -76,6 +76,10 @@ export function buildImageCandidates(
     return [...new Set([built, ...mirrors, url])];
   }
   if (mode !== 'direct') return [built];
+  // 豆瓣原图对无 Referer 的请求返回 418，直连必失败；直接先走镜像，再兜底内置代理
+  if (url.includes('doubanio.com')) {
+    return [...new Set([...mirrors, `/api/proxy?url=${encodeURIComponent(url)}`, url])];
+  }
   return [...new Set([built, ...mirrors, `/api/proxy?url=${encodeURIComponent(url)}`])];
 }
 

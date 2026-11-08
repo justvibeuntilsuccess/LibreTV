@@ -216,7 +216,7 @@ export function LiveSourceManager() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-content truncate">
                           {row.label}
-                          {row.isAdult && <span className="text-pink-400 text-xs ml-1">(18+)</span>}
+                          {row.isAdult && <span className="text-pink-400 text-xs">(A)</span>}
                           {row.preset && (
                             <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-chip text-faint align-middle">
                               部署者预置
