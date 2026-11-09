@@ -7,7 +7,7 @@ import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import type { DoubanItem } from '@/lib/types';
 import { NETFLIX_SUBS } from '@/lib/netflix-subs';
-import { DoubanCard } from './video-card';
+import { DoubanCard, FeaturedDoubanCard } from './video-card';
 
 const MOVIE_TAGS = ['热门', '最新', '经典', '豆瓣高分', '冷门佳片', '华语', '欧美', '韩国', '日本', '动画'];
 const TV_TAGS = ['热门', '美剧', '英剧', '韩剧', '日剧', '国产剧', '港剧', '日本动画', '综艺', '纪录片'];
@@ -49,9 +49,14 @@ function DoubanView({ onPick }: { onPick: (title: string) => void }) {
 
   return (
     <section aria-label="影视推荐">
+      <header className="mb-5">
+        <p className="mb-1 text-[11px] font-semibold tracking-[.18em] text-accent uppercase">精选片单</p>
+        <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-.03em] text-content">现在值得一看</h2>
+        <p className="mt-1 text-sm text-muted">从热门新片到口碑佳作，为你发现精彩内容。</p>
+      </header>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="flex bg-chip rounded-lg p-0.5">
+          <div className="glass-controls flex rounded-full p-1">
             <TypeButton active={type === 'movie'} onClick={() => switchType('movie')}>
               电影
             </TypeButton>
@@ -67,8 +72,8 @@ function DoubanView({ onPick }: { onPick: (title: string) => void }) {
           <button
             key={t}
             className={cn(
-              'px-2.5 py-1 rounded-full text-xs transition-colors',
-              t === tag ? 'bg-accent text-on-accent' : 'bg-chip text-muted hover:text-content hover:bg-hover'
+              'px-3 py-1.5 rounded-full text-xs transition-colors',
+              t === tag ? 'bg-accent text-on-accent shadow-lg shadow-accent/20' : 'glass-chip text-muted hover:text-content'
             )}
             onClick={() => setTag(t)}
           >
@@ -83,13 +88,7 @@ function DoubanView({ onPick }: { onPick: (title: string) => void }) {
         <GridSkeleton />
       ) : items.length === 0 ? (
         <p className="text-center text-sm text-faint py-8">该分类暂无推荐内容</p>
-      ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
-          {items.map((item) => (
-            <DoubanCard key={item.id} item={item} onClick={() => onPick(item.title)} />
-          ))}
-        </div>
-      )}
+      ) : <RecommendationShelf items={items} onPick={onPick} />}
     </section>
   );
 }
@@ -112,6 +111,10 @@ function BangumiView({ onPick }: { onPick: (title: string) => void }) {
 
   return (
     <section aria-label="新番放送推荐">
+      <header className="mb-5">
+        <p className="mb-1 text-[11px] font-semibold tracking-[.18em] text-accent uppercase">今日放送</p>
+        <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-.03em] text-content">新番日历</h2>
+      </header>
       <div className="flex flex-wrap gap-1.5 mb-4">
         <ChipButton active={weekday === 'all'} onClick={() => setWeekday('all')}>
           全部
@@ -127,13 +130,7 @@ function BangumiView({ onPick }: { onPick: (title: string) => void }) {
         <p className="text-center text-sm text-faint py-8">推荐内容加载失败，可稍后重试或在设置中关闭</p>
       ) : query.isLoading ? (
         <GridSkeleton />
-      ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
-          {items.map((item) => (
-            <DoubanCard key={item.id} item={item} onClick={() => onPick(item.title)} />
-          ))}
-        </div>
-      )}
+      ) : <RecommendationShelf items={items} onPick={onPick} />}
     </section>
   );
 }
@@ -158,6 +155,10 @@ function HotListView({ onPick }: { onPick: (title: string) => void }) {
 
   return (
     <section aria-label="影视榜单推荐">
+      <header className="mb-5">
+        <p className="mb-1 text-[11px] font-semibold tracking-[.18em] text-accent uppercase">热度榜单</p>
+        <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-.03em] text-content">全站正在热播</h2>
+      </header>
       <div className="flex flex-wrap gap-1.5 mb-3">
         {HOT_LISTS.map((l) => (
           <ChipButton key={l.id} active={listId === l.id} onClick={() => setListId(l.id)}>
@@ -180,13 +181,7 @@ function HotListView({ onPick }: { onPick: (title: string) => void }) {
         <p className="text-center text-sm text-faint py-8">推荐内容加载失败，可稍后重试或在设置中关闭</p>
       ) : query.isLoading ? (
         <GridSkeleton />
-      ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
-          {items.map((item) => (
-            <DoubanCard key={item.id} item={item} onClick={() => onPick(item.title)} />
-          ))}
-        </div>
-      )}
+      ) : <RecommendationShelf items={items} onPick={onPick} />}
     </section>
   );
 }
@@ -204,12 +199,40 @@ function GridSkeleton() {
   );
 }
 
+function RecommendationShelf({
+  items,
+  onPick,
+}: {
+  items: DoubanItem[];
+  onPick: (title: string) => void;
+}) {
+  if (items.length === 0) return <p className="py-10 text-center text-sm text-faint">暂无推荐内容</p>;
+  const [featured, ...rest] = items;
+  return (
+    <>
+      <FeaturedDoubanCard
+        item={featured}
+        onClick={() => onPick(featured.searchTitle || featured.title)}
+      />
+      {rest.length > 0 && (
+        <div className="recommendation-rail glass-shelf flex gap-4 overflow-x-auto pb-5 scrollbar-thin snap-x snap-mandatory">
+          {rest.map((item) => (
+            <div key={item.id} className="w-[126px] sm:w-[154px] lg:w-[170px] shrink-0 snap-start">
+              <DoubanCard item={item} onClick={() => onPick(item.searchTitle || item.title)} />
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 function ChipButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       className={cn(
-        'px-2.5 py-1 rounded-full text-xs transition-colors',
-        active ? 'bg-accent text-on-accent' : 'bg-chip text-muted hover:text-content hover:bg-hover'
+        'px-3 py-1.5 rounded-full text-xs transition-colors',
+        active ? 'bg-accent text-on-accent shadow-lg shadow-accent/20' : 'glass-chip text-muted hover:text-content'
       )}
       onClick={onClick}
     >
@@ -221,7 +244,7 @@ function ChipButton({ active, onClick, children }: { active: boolean; onClick: (
 function TypeButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
-      className={cn('px-3.5 py-1.5 rounded-md text-sm transition-colors', active ? 'bg-accent text-on-accent' : 'text-muted hover:text-content')}
+      className={cn('px-3.5 py-1.5 rounded-full text-sm transition-colors', active ? 'bg-accent text-on-accent shadow-lg shadow-accent/20' : 'glass-chip text-muted hover:text-content')}
       onClick={onClick}
       aria-pressed={active}
     >

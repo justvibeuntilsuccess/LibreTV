@@ -37,11 +37,12 @@ export function Header({ showSearch = false }: { showSearch?: boolean }) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur border-b border-line">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
-          <Link href="/" aria-label="LibreTV 首页" className="flex items-center shrink-0">
+      <header className="glass-nav sticky top-0 z-40 backdrop-blur-2xl border-b">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-7 h-16 flex items-center gap-5">
+          <Link href="/" aria-label="LibreTV 首页" className="flex items-center gap-2.5 shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icons/icon-512.png" alt="LibreTV" className="w-7 h-7 rounded-lg" />
+            <img src="/icons/icon-512.png" alt="LibreTV" className="w-8 h-8 rounded-[10px]" />
+            <span className="hidden sm:block text-[15px] font-semibold tracking-[-.02em] text-content">LibreTV</span>
           </Link>
 
           {showSearch && (
@@ -131,8 +132,8 @@ function HeaderLink({ href, active, children }: { href: string; active: boolean;
     <Link
       href={href}
       className={cn(
-        'px-2.5 py-1.5 rounded-md text-sm transition-colors',
-        active ? 'text-content bg-hover' : 'text-muted hover:text-content'
+        'px-3 py-2 rounded-full text-[13px] transition-colors',
+        active ? 'text-content bg-white/10' : 'text-muted hover:text-content hover:bg-white/[.06]'
       )}
     >
       {children}

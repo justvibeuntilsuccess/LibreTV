@@ -12,6 +12,9 @@ import type { NetflixSub } from './netflix-subs';
  * 类型榜：官方 Top 10 只有 Films / TV（以及英语/非英语），没有动作、纪录片这些
  * 细分。细分榜用 JustWatch 的公开 GraphQL（provider=nfx + genre），按平台热度排序。
  *
+ * 中文采集站基本只索引中文片名，所以每条同时取 JustWatch 的英文名（展示）和
+ * 中文名（searchTitle，点卡片时实际搜索的关键词）。
+ *
  * 结果缓存 1 小时。
  */
 
@@ -69,17 +72,22 @@ interface JwContent {
 }
 
 interface JwEdge {
-  node?: { id?: string; objectType?: string; content?: JwContent };
+  node?: {
+    id?: string;
+    objectType?: string;
+    content?: JwContent;
+    zh?: { title?: string };
+  };
 }
 
-async function jwQuery(
-  filter: Record<string, unknown>,
-  first: number
-): Promise<JwEdge[]> {
+async function jwQuery(filter: Record<string, unknown>, first: number): Promise<JwEdge[]> {
   const query =
-    'query T($country: Country!, $language: Language!, $first: Int!, $filter: TitleFilter) {' +
+    'query T($country: Country!, $language: Language!, $languageZh: Language!, $first: Int!, $filter: TitleFilter) {' +
     ' popularTitles(country: $country, first: $first, filter: $filter) {' +
-    ' edges { node { id objectType content(country: $country, language: $language) { title originalReleaseYear posterUrl } } } } }';
+    ' edges { node { id objectType' +
+    ' content(country: $country, language: $language) { title originalReleaseYear posterUrl }' +
+    ' zh: content(country: $country, language: $languageZh) { title }' +
+    ' } } } }';
   const res = await fetchUpstream(JW_GRAPHQL, {
     timeoutMs: 9000,
     method: 'POST',
@@ -90,7 +98,7 @@ async function jwQuery(
     },
     body: JSON.stringify({
       query,
-      variables: { country: 'MY', language: 'en', first, filter },
+      variables: { country: 'MY', language: 'en', languageZh: 'zh', first, filter },
     }),
   });
   if (!res.ok) throw new Error(`JustWatch 响应异常 (${res.status})`);
@@ -105,41 +113,48 @@ function renderPoster(posterUrl: string | undefined): string | undefined {
   return `https://images.justwatch.com${posterUrl.replace('{profile}', 's718').replace('{format}', 'jpg')}`;
 }
 
-/** 用 JustWatch 搜索给官方榜的标题补海报；找不到就返回 undefined（卡片退化为文字） */
-async function lookupPoster(title: string): Promise<string | undefined> {
+/** 去掉 Netflix 的季/部后缀，中文源里搜不到带后缀的名字 */
+function stripSeason(title: string): string {
+  return title
+    .replace(/:\s*(Limited Series|Season\s+\d+|Part\s+\d+|Volume\s+\d+|Chapter\s+\d+)\s*$/i, '')
+    .replace(/\s*第[一二三四五六七八九十\d]+[季部]\s*$/, '')
+    .trim();
+}
+
+/** 官方榜的标题在 JustWatch 里搜一次，拿海报 + 中文名 */
+async function lookupMeta(title: string): Promise<{ poster?: string; zh?: string }> {
   const candidates = [title, title.replace(/:\s*[^:]+$/, '')].filter(
     (t, i, arr) => t && arr.indexOf(t) === i
   );
   for (const candidate of candidates) {
     try {
       const edges = await jwQuery({ searchQuery: candidate, packages: ['nfx'] }, 1);
-      const poster = renderPoster(edges[0]?.node?.content?.posterUrl);
-      if (poster) return poster;
+      const node = edges[0]?.node;
+      const poster = renderPoster(node?.content?.posterUrl);
+      if (poster) return { poster, zh: node?.zh?.title };
     } catch {
       /* 下一候选 */
     }
   }
-  return undefined;
+  return {};
 }
 
 async function fetchOfficial(kind: 'tv' | 'films'): Promise<DoubanItem[]> {
   const titles = await fetchTudumTitles(kind);
   if (titles.length === 0) throw new Error('Netflix 官方榜解析失败');
 
-  const posters = await Promise.all(titles.map((t) => lookupPoster(t)));
+  const metas = await Promise.all(titles.map((t) => lookupMeta(t)));
   return titles.map((title, i) => ({
     id: `nfx_${kind}_${i + 1}`,
     title,
-    cover: posters[i] || '',
+    cover: metas[i]?.poster || '',
     isTv: kind === 'tv',
+    searchTitle: stripSeason(metas[i]?.zh || title),
   }));
 }
 
 async function fetchGenre(genre: string): Promise<DoubanItem[]> {
-  const edges = await jwQuery(
-    { packages: ['nfx'], genres: [genre], objectTypes: ['MOVIE'] },
-    24
-  );
+  const edges = await jwQuery({ packages: ['nfx'], genres: [genre], objectTypes: ['MOVIE'] }, 24);
   return edges
     .map((edge, i) => {
       const content = edge.node?.content;
@@ -151,6 +166,7 @@ async function fetchGenre(genre: string): Promise<DoubanItem[]> {
         title,
         cover,
         isTv: false,
+        searchTitle: stripSeason(edge.node?.zh?.title || title),
       } as DoubanItem;
     })
     .filter((item): item is DoubanItem => item !== undefined);

@@ -168,29 +168,12 @@ function HomeContent() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="relative flex-1 max-w-6xl w-full mx-auto px-4 py-6">
-        {/* 首屏氛围渐变 */}
-        {!urlQuery && (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-[420px] -z-10"
-            style={{
-              background:
-                'radial-gradient(60% 60% at 50% 0%, rgba(35,173,229,0.10) 0%, rgba(35,173,229,0.03) 45%, transparent 75%)',
-            }}
-          />
-        )}
-
+      <main className="relative flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-7 py-6 sm:py-8">
         {/* 搜索区 */}
-        <section className={cn('flex flex-col items-center', urlQuery ? 'mb-6' : 'mt-8 mb-8')}>
-          {!urlQuery && (
-            <header className="text-center mb-6">
-              <h1 className="text-4xl sm:text-5xl font-bold brand-gradient">LibreTV</h1>
-            </header>
-          )}
+        <section className={cn('flex flex-col items-center', urlQuery ? 'mb-8' : 'mt-2 mb-10')}>
           {urlQuery && <h1 className="sr-only">LibreTV 视频搜索</h1>}
           {/* 定位容器比胶囊宽一圈：浮层按它的宽度对齐，接缝处不会与胶囊边框错位 1px */}
-          <div ref={searchHistory.containerRef} className="relative w-full max-w-2xl">
+          <div ref={searchHistory.containerRef} className={cn('relative w-full', urlQuery ? 'max-w-3xl' : 'max-w-2xl')}>
             <form
               className="w-full"
               onSubmit={(e) => {
@@ -205,7 +188,7 @@ function HomeContent() {
                   // 12px 圆角矩形（非胶囊）：收起态与展开态共用同一组上圆角，
                   // 展开时输入框这部分形状完全不发生变化，上下圆角也与下拉保持一致；
                   // 右侧与上下不留内边距，由搜索按钮拉伸填满、与搜索框边缘贴合
-                  'flex items-stretch min-h-12 pl-4 border',
+                  'glass-search flex items-stretch min-h-12 pl-4 border',
                   'transition-[background-color,border-color,border-radius] duration-200',
                   searchHistory.visible
                     ? // 展开时：外框（含上圆角）沿用输入框的聚焦样式不变，只把底边改为内部分隔线，
@@ -331,7 +314,7 @@ function HomeContent() {
               <NoSourceGuide hasSources={customAPIs.length > 0 || envSources.length > 0} />
             ) : list.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
                   {visibleGroups.map((group) => (
                     <AggregatedCard
                       key={group.key}

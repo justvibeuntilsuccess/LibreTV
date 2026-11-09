@@ -541,3 +541,67 @@ export function DoubanCard({ item, onClick }: { item: { title: string; cover: st
     </div>
   );
 }
+
+/** Focused recommendation: wide cinematic card followed by the poster shelf. */
+export function FeaturedDoubanCard({
+  item,
+  onClick,
+}: {
+  item: { title: string; cover: string; rating?: string };
+  onClick: () => void;
+}) {
+  const imageProxyMode = useAppStore((s) => s.imageProxyMode);
+  const customImageProxy = useAppStore((s) => s.customImageProxy);
+  const [imgFailed, setImgFailed] = useState(false);
+  useEffect(() => setImgFailed(false), [item.cover]);
+
+  return (
+    <div
+      className="featured-pick relative mb-8 min-h-[310px] sm:min-h-[390px] overflow-hidden rounded-[24px] sm:rounded-[30px] bg-chip cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      role="button"
+      tabIndex={0}
+      aria-label={`搜索影片：${item.title}`}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+    >
+      {item.cover && !imgFailed && (
+        <SmartImage
+          url={item.cover}
+          mode={imageProxyMode}
+          customProxy={customImageProxy}
+          alt=""
+          loading="eager"
+          className="featured-pick-art absolute inset-0 h-full w-full object-cover object-[center_32%]"
+          onExhausted={() => setImgFailed(true)}
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-black/5 sm:from-black/85 sm:via-black/35" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/10" />
+      <div className="relative flex min-h-[310px] sm:min-h-[390px] items-end p-6 sm:p-10 lg:p-12">
+        <div className="max-w-xl text-white">
+          <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[.2em] text-white/70">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_12px_rgb(var(--c-accent))]" />
+            今晚精选
+          </div>
+          <h3 className="text-3xl sm:text-5xl lg:text-6xl font-semibold tracking-[-.04em] leading-[1.05] drop-shadow-lg">
+            {item.title}
+          </h3>
+          <div className="mt-3 flex items-center gap-3 text-sm text-white/75">
+            {item.rating && <span className="text-amber-300">★ {item.rating}</span>}
+            <span>热门推荐</span>
+            <span className="rounded border border-white/35 px-1.5 py-0.5 text-[10px] tracking-wide">精选</span>
+          </div>
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black shadow-lg transition-transform duration-200 hover:scale-[1.03]">
+            <svg className="h-4 w-4 fill-current" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.2c0-.6.65-.96 1.15-.64l6.3 4.05a.76.76 0 0 1 0 1.28l-6.3 4.05A.76.76 0 0 1 5 11.3z" /></svg>
+            查找播放源
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
