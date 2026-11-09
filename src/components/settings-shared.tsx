@@ -49,7 +49,7 @@ export function useSourceTests() {
 
 export function SectionTitle({ title, hint, extra }: { title: string; hint?: string; extra?: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-2 mb-2.5">
+    <div className="flex items-center justify-between gap-2 mb-3">
       <div className="min-w-0">
         <h3 className="text-sm font-semibold text-content">{title}</h3>
         {hint && <p className="text-[11px] text-faint truncate">{hint}</p>}
@@ -71,10 +71,10 @@ export function ToggleRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-0.5">
-      <div className="min-w-0">
-        <div className="text-sm text-content">{label}</div>
-        <div className="text-xs text-faint">{description}</div>
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface px-3.5 py-3">
+      <div className="min-w-0 pr-2">
+        <div className="text-sm font-medium text-content">{label}</div>
+        <div className="mt-0.5 text-xs leading-relaxed text-faint">{description}</div>
       </div>
       <Switch checked={checked} onChange={onChange} label={label} />
     </div>
@@ -136,10 +136,10 @@ export function SelectRow({
   description?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-0.5">
-      <div className="min-w-0">
-        <div className="text-sm text-content">{label}</div>
-        {description && <div className="text-xs text-faint">{description}</div>}
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface px-3.5 py-3">
+      <div className="min-w-0 pr-2">
+        <div className="text-sm font-medium text-content">{label}</div>
+        {description && <div className="mt-0.5 text-xs leading-relaxed text-faint">{description}</div>}
       </div>
       <Dropdown
         value={value}

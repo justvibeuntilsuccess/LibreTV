@@ -6,6 +6,7 @@ import { useToast } from './toast';
 import { api } from '@/lib/client-api';
 import { formatRelativeTime, hostnameOf, validateSourceUrl, cn } from '@/lib/utils';
 import { SearchInput, SectionTitle, TestBadge, useSourceTests } from './settings-shared';
+import { matchesAdultMode } from '@/lib/adult-mode';
 import { EmptyState } from './states';
 import { Icon } from './icon';
 
@@ -66,6 +67,7 @@ export function LiveSourceManager() {
     const all = [...preset, ...subs];
     const q = query.trim().toLowerCase();
     return all.filter((r) => {
+      if (!matchesAdultMode(r.isAdult, store.adultMode)) return false;
       if (filter === 'enabled' && !store.liveSelectedUrls.includes(r.url)) return false;
       if (filter === 'disabled' && store.liveSelectedUrls.includes(r.url)) return false;
       if (filter === 'sub' && r.fromSubscriptions.length === 0) return false;
@@ -73,7 +75,7 @@ export function LiveSourceManager() {
       if (!q) return true;
       return r.label.toLowerCase().includes(q) || r.url.toLowerCase().includes(q);
     });
-  }, [store.liveEnvSources, store.liveSubscriptions, store.liveSelectedUrls, query, filter]);
+  }, [store.liveEnvSources, store.liveSubscriptions, store.liveSelectedUrls, store.adultMode, query, filter]);
 
   // 编辑中的手动源（与「添加」共用同一表单）
   const editingSource = editing ? store.liveSubscriptions.find((s) => s.url === editing) : undefined;
@@ -109,12 +111,21 @@ export function LiveSourceManager() {
   };
 
   const empty = store.liveEnvSources.length === 0 && store.liveSubscriptions.length === 0;
+  const totalCount = store.liveEnvSources.length + store.liveSubscriptions.length;
+  const availableCount = [...store.liveEnvSources, ...store.liveSubscriptions].filter((s) =>
+    matchesAdultMode(s.isAdult, store.adultMode)
+  ).length;
+  const availableEnabledCount = new Set(
+    [...store.liveEnvSources, ...store.liveSubscriptions]
+      .filter((s) => matchesAdultMode(s.isAdult, store.adultMode))
+      .map((s) => s.url)
+  );
 
   return (
     <section>
       <SectionTitle
         title="直播源"
-        hint={empty ? 'M3U 订阅 · /live 页面播放' : `共 ${store.liveEnvSources.length + store.liveSubscriptions.length} 个 · 已启用 ${store.liveSelectedUrls.length}`}
+        hint={empty ? 'M3U 订阅 · /live 页面播放' : `${availableCount < totalCount ? `已隐藏 ${totalCount - availableCount} 个${store.adultMode === 'only' ? '非 18+' : '18+'} 源 · ` : ''}显示 ${availableCount} 个 · 已启用 ${store.liveSelectedUrls.filter((url) => availableEnabledCount.has(url)).length}`}
         extra={
           <button className="btn-primary btn-sm" onClick={() => setAdding(true)}>
             <Icon name="plus" className="w-3.5 h-3.5" />

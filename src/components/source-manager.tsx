@@ -31,6 +31,7 @@ import { useAuth } from './auth';
 import { api } from '@/lib/client-api';
 import { syncSourceSubscription } from '@/lib/subscription-sync';
 import { describeParseStats } from '@/lib/tvbox-parser';
+import { matchesAdultMode } from '@/lib/adult-mode';
 
 /**
  * 设置抽屉：顶部两级导航。
@@ -47,6 +48,12 @@ const PRIMARY_TABS: { id: PrimaryTab; label: string; icon: IconName }[] = [
   { id: 'prefs', label: '偏好设置', icon: 'gear' },
   { id: 'data', label: '数据', icon: 'download' },
 ];
+
+const PRIMARY_HINTS: Record<PrimaryTab, string> = {
+  sources: '管理点播、直播和订阅来源',
+  prefs: '调整播放方式、首页内容和显示偏好',
+  data: '备份或恢复你的 LibreTV 配置',
+};
 
 const SECONDARY_TABS: Record<PrimaryTab, { id: SecondaryTab; label: string }[]> = {
   sources: [
@@ -114,9 +121,14 @@ export function SourceManagerDrawer({ open, onClose }: { open: boolean; onClose:
       open={open}
       onClose={onClose}
       title="设置"
+      width="max-w-lg"
       resetScrollKey={current}
       subheader={
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm font-medium text-content">让 LibreTV 更适合你</p>
+            <p className="mt-0.5 text-xs text-faint">{PRIMARY_HINTS[primary]}</p>
+          </div>
           <TabRow tabs={PRIMARY_TABS} value={primary} onChange={setPrimary} variant="primary" ariaLabel="设置分类" />
           {/* 分组下只有一项时无需二级导航，直接展示该面板 */}
           {SECONDARY_TABS[primary].length > 1 && (
@@ -230,10 +242,12 @@ function VodSourcesPanel() {
 
   const envKeys = useMemo(() => new Set(store.envSources.map((s) => s.key)), [store.envSources]);
   const all = useMemo(() => [...store.envSources, ...store.customAPIs], [store.envSources, store.customAPIs]);
+  const availableSources = all.filter((s) => matchesAdultMode(s.isAdult, store.adultMode));
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return all.filter((s) => {
+      if (!matchesAdultMode(s.isAdult, store.adultMode)) return false;
       const fromSub = s.key.startsWith('sub_');
       // 已启用 = 勾选中且当前未被自动停用（即真正在参与搜索的源）
       if (filter === 'enabled' && !(store.selectedKeys.includes(s.key) && !isSourceDisabled(store, s.key))) return false;
@@ -254,8 +268,7 @@ function VodSourcesPanel() {
       store.setSelectedKeys(store.selectedKeys.filter((k) => !visibleKeys.includes(k)));
       return;
     }
-    // 成人过滤开启时成人源不可勾选，与行内复选框保持一致
-    const eligible = filtered.filter((s) => !(s.isAdult && store.yellowFilter)).map((s) => s.key);
+    const eligible = filtered.filter((s) => matchesAdultMode(s.isAdult, store.adultMode)).map((s) => s.key);
     const skipped = filtered.length - eligible.length;
     store.setSelectedKeys([...new Set([...store.selectedKeys, ...eligible])]);
     if (skipped > 0) toast(`已启用 ${eligible.length} 个；${skipped} 个 18+ 源因当前范围被跳过`, 'info');
@@ -285,7 +298,7 @@ function VodSourcesPanel() {
     <section>
       <SectionTitle
         title="点播源"
-        hint={empty ? undefined : `共 ${all.length} 个 · 已启用 ${all.filter((s) => store.selectedKeys.includes(s.key)).length}`}
+        hint={empty ? undefined : `${availableSources.length < all.length ? `已隐藏 ${all.length - availableSources.length} 个${store.adultMode === 'only' ? '非 18+' : '18+'} 源 · ` : ''}显示 ${availableSources.length} 个 · 已启用 ${availableSources.filter((s) => store.selectedKeys.includes(s.key)).length}`}
         extra={
           <button className="btn-primary btn-sm" onClick={() => setEditing('__new__')}>
             <Icon name="plus" className="w-3.5 h-3.5" />
