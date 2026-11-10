@@ -127,6 +127,7 @@ export function SelectRow({
   onChange,
   options,
   description,
+  disabled = false,
 }: {
   label: string;
   value: string;
@@ -134,6 +135,7 @@ export function SelectRow({
   options: DropdownOption[];
   /** 当前选中项的说明文案，随选中项变化 */
   description?: string;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface px-3.5 py-3">
@@ -141,13 +143,19 @@ export function SelectRow({
         <div className="text-sm font-medium text-content">{label}</div>
         {description && <div className="mt-0.5 text-xs leading-relaxed text-faint">{description}</div>}
       </div>
-      <Dropdown
-        value={value}
-        onChange={onChange}
-        options={options}
-        ariaLabel={label}
-        className="shrink-0 [&>button]:!py-1.5 [&>button]:!pl-2.5 [&>button]:!pr-2 [&>button]:text-xs"
-      />
+      {disabled ? (
+        <span aria-label={`${label}（受限）`} className="shrink-0 rounded-lg border border-line bg-chip px-2.5 py-1.5 text-xs text-muted" title="此设置由管理员控制">
+          {options.find((option) => option.value === value)?.label ?? value} · 管理员控制
+        </span>
+      ) : (
+        <Dropdown
+          value={value}
+          onChange={onChange}
+          options={options}
+          ariaLabel={label}
+          className="shrink-0 [&>button]:!py-1.5 [&>button]:!pl-2.5 [&>button]:!pr-2 [&>button]:text-xs"
+        />
+      )}
     </div>
   );
 }

@@ -49,7 +49,7 @@ async function fetchClasses(base: string) {
 }
 
 export async function GET(req: Request) {
-  const guarded = guardRequest(req);
+  const guarded = await guardRequest(req);
   if (guarded) return guarded;
 
   const raw = new URL(req.url).searchParams.get('url') || '';

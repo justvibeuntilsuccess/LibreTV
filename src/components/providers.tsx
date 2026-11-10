@@ -7,6 +7,7 @@ import { AuthProvider } from './auth';
 import { ThemeProvider } from './theme';
 import { GlobalDownloadManager } from './download-manager';
 import { useAppStore, hydrateLiveProbeResults } from '@/lib/store';
+import { applyProfileSettings } from '@/lib/profile-settings';
 import { api, STATUS_QUERY_KEY } from '@/lib/client-api';
 import { applyEnvPresets } from '@/lib/subscription-sync';
 
@@ -38,7 +39,15 @@ export function Providers({ children }: { children: ReactNode }) {
         // 预置数据（DEFAULT_SOURCES / DEFAULT_LIVE_SOURCES / DEFAULT_SUBSCRIPTIONS）
         // 预置订阅要经鉴权接口拉取，首屏这次可能发生在登录之前而 401 静默失败；
         // 登录成功后由 AuthProvider 再调一次 applyEnvPresets 补齐（函数幂等）
-        if (d) return applyEnvPresets(d);
+        if (d) {
+          const applyProfile = d.user?.role === 'user'
+            ? fetch('/api/admin').then((response) => response.ok ? response.json() : null).then((data) => {
+                const profile = data?.profile;
+                if (profile && typeof profile.preferences === 'object' && d.user) applyProfileSettings(profile.preferences, profile.id, profile.updatedAt ?? 1, d.user.id);
+              }).catch(() => {})
+            : Promise.resolve();
+          return applyProfile.then(() => applyEnvPresets(d));
+        }
       })
       .catch(() => {});
   }, [queryClient]);

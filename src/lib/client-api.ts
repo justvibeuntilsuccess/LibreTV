@@ -115,11 +115,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   status: () => request<AuthStatusResponse>('/api/status'),
 
-  login: (password: string) =>
+  login: (password: string, username?: string) =>
     request<{ success: boolean }>('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ password, username }),
     }),
 
   logout: () => request<{ success: boolean }>('/api/auth', { method: 'DELETE' }),

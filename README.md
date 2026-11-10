@@ -22,6 +22,7 @@ LibreTV Next.js 迁移版：免费在线视频聚合搜索与观看平台。基�
 - **HLS 播放**：ArtPlayer + hls.js，广告分片过滤、自动连播、倍速、快捷键、移动端长按 3 倍速
 - **直播 / IPTV**：M3U 订阅解析，`/live` 页面按分组浏览、搜索频道并站内播放（HLS + HTTP-FLV），支持 XMLTV 节目单（EPG）与频道收藏；直播流经专用长连接代理（`/api/live/stream`）转发
 - **进度同步**：播放进度与观看历史存于本机 IndexedDB，精确到秒的续播
+- **用户与偏好管理**：管理员可创建用户、分配偏好配置并管理角色；普通用户只能使用管理员分配的偏好
 - **换源测速**：跨源搜索同名资源并测速排序，一键切换保留集数位置
 - **源测试与订阅**：一键探活点播源与直播源（支持批量测活）；搜索时自动记录各源健康度，连续失败的源按阶梯时长自动停用（30 分钟 → 24 小时 → 长期），可一键恢复；订阅远程源列表（一份 LibreTV-SourceList JSON 可同时下发点播源与直播源，也可直接填 TVBOX 配置地址，自动导入其中可直接使用的接口），可导出分享
 - **首页推荐**：豆瓣（电影/剧集分类浏览）、Bangumi 新番放送表或影视榜单（豆瓣周榜 + 百度热播，经 60s API），设置中切换；均服务端直连 + 缓存，Bangumi/榜单免 key 免配置（`60S_API_BASE` 可指向自部署 60s 实例）
@@ -32,7 +33,7 @@ LibreTV Next.js 迁移版：免费在线视频聚合搜索与观看平台。基�
 ### Docker（推荐）
 
 ```bash
-# 在 .env 中设置 PASSWORD
+# 在 .env 中设置 PASSWORD（初始管理员密码）
 echo "PASSWORD=your-password" > .env
 
 # 方式一：拉取发布镜像（零构建）
@@ -53,7 +54,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - PASSWORD=change-me   # 必填：访问密码，务必修改
+      - PASSWORD=change-me   # 必填：初始管理员密码，务必修改
+      - USER_DATA_FILE=/data/users.json
       # - PROXY_SECRET=your-secret          # 会话/代理签名密钥，多实例部署建议设置
       # - DEFAULT_SOURCES=[{"name":"示例源","url":"https://example.com/api.php/provide/vod"}]
       # - DEFAULT_LIVE_SOURCES=[{"name":"示例直播源","url":"https://example.com/list.m3u"}]
@@ -90,6 +92,7 @@ PASSWORD=your-password npm start   # 监听 8080
 | 变量 | 必填 | 说明 |
 | --- | --- | --- |
 | `PASSWORD` | 是 | 访问密码；未设置时站点会提示管理员配置 |
+| `USER_DATA_FILE` | 否 | 用户与偏好配置文件；默认 `./data/users.json`，Docker Compose 使用持久卷 `/data/users.json` |
 | `PROXY_SECRET` | 否 | 会话/代理签名密钥；不设置时从 PASSWORD 派生（多实例部署建议显式设置） |
 | `DEFAULT_SOURCES` | 否 | 预置采集站（JSON 数组），用户端自动出现且默认勾选，详见[配置文档](https://libretv.is-an.org/wiki/Configuration.html) |
 | `REQUEST_TIMEOUT` | 否 | 代理上游请求超时（毫秒），默认 8000 |
@@ -106,6 +109,8 @@ PASSWORD=your-password npm start   # 监听 8080
 | `LIVE_ALLOW_PRIVATE` | 否 | 设为 `1` 时允许直播流代理访问内网/保留地址（自建 IPTV 场景），默认关闭以维持 SSRF 防护 |
 
 ## 使用说明
+
+- 首次使用环境变量 `PASSWORD` 登录后，打开「用户管理」创建普通用户和偏好配置。默认管理员用户名为 `admin`，密码为 `PASSWORD`；Docker 部署会将用户数据保存在 `libretv-users` 卷中。普通用户看不到设置入口，只能使用管理员分配的偏好配置。
 
 1. **添加点播源**：设置 → 源管理 → 点播源 → 添加 API，填入 Apple CMS 采集站地址（如 `https://example.com/api.php/provide/vod`），可选填详情页地址（部分源需要爬详情页提取播放地址）。
 2. **搜索**：勾选点播源后输入片名；搜索通过服务端聚合，个别源失败不影响整体结果。

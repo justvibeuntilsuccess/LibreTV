@@ -19,6 +19,7 @@ import {
 import { buildWatchUrl, cn, formatRelativeTime, formatTime } from '@/lib/utils';
 import { useToast } from './toast';
 import { resolveSource, useAppStore } from '@/lib/store';
+import { useAuth } from './auth';
 
 /**
  * 观看历史面板（IndexedDB 实时查询）。
@@ -30,10 +31,20 @@ import { resolveSource, useAppStore } from '@/lib/store';
 const VISIBLE_LIMIT = 50;
 
 export function HistoryPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { verified, userId } = useAuth();
   // 全量读取（上限即 DB 淘汰上限）：默认只渲染最近若干条，搜索时覆盖更早的记录
+  // 按 owner 过滤：未登录、或换了账号，都看不到别人的记录
   const history = useLiveQuery(
-    () => db.history.orderBy('timestamp').reverse().limit(MAX_HISTORY).toArray(),
-    [open]
+    () =>
+      !verified || !userId
+        ? Promise.resolve([] as HistoryEntry[])
+        : db.history
+            .orderBy('timestamp')
+            .reverse()
+            .filter((h) => h.owner === userId)
+            .limit(MAX_HISTORY)
+            .toArray(),
+    [open, verified, userId]
   );
   const { toast } = useToast();
   const [confirmClear, setConfirmClear] = useState(false);
@@ -97,7 +108,9 @@ export function HistoryPanel({ open, onClose }: { open: boolean; onClose: () => 
         ) : undefined
       }
     >
-      {!history ? (
+      {!verified ? (
+        <EmptyState variant="plain" title="请先登录后查看观看历史" />
+      ) : !history ? (
         <LoadingState />
       ) : total === 0 ? (
         <EmptyState variant="plain" title="暂无观看记录" />
@@ -127,7 +140,7 @@ export function HistoryPanel({ open, onClose }: { open: boolean; onClose: () => 
         confirmLabel="清空"
         onCancel={() => setConfirmClear(false)}
         onConfirm={() => {
-          void clearAllHistory().then(() => toast('观看历史已清空', 'success'));
+          void clearAllHistory(userId ?? undefined).then(() => toast('观看历史已清空', 'success'));
           setConfirmClear(false);
         }}
       />
@@ -168,6 +181,7 @@ function HistoryItem({ item }: { item: HistoryEntry }) {
             void upsertHistory({
               sourceKey: item.sourceKey,
               sourceUrl: item.sourceUrl,
+              owner: item.owner,
               vodId: item.vodId,
               title: item.title,
               pic: item.pic,

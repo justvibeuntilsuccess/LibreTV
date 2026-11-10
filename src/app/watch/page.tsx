@@ -49,7 +49,7 @@ function WatchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const store = useAppStore();
-  const { verified } = useAuth();
+  const { verified, userId } = useAuth();
 
   const sourceKey = searchParams.get('source') || '';
   const vodId = searchParams.get('id') || '';
@@ -117,6 +117,7 @@ function WatchContent() {
       upsertHistory({
         sourceKey,
         sourceUrl: source?.url,
+        owner: userId ?? undefined,
         vodId: vodId || currentUrl,
         title: videoTitle,
         pic: detailQuery.data?.videoInfo?.cover,
@@ -129,7 +130,7 @@ function WatchContent() {
     }, 2000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [verified, sourceKey, vodId, currentIndex, videoTitle, currentUrl]);
+  }, [verified, userId, sourceKey, vodId, currentIndex, videoTitle, currentUrl]);
 
   // 播放中与暂停时的进度落盘逻辑一致，共用同一回调
   const handleProgress = useCallback(

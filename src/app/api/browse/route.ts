@@ -44,7 +44,7 @@ function parseList(data: unknown): BrowseItem[] {
 
 /** 按分类浏览：AppleCMS 的 ?ac=videolist&t=<type_id>&pg=<page> */
 export async function GET(req: Request) {
-  const guarded = guardRequest(req);
+  const guarded = await guardRequest(req);
   if (guarded) return guarded;
 
   const sp = new URL(req.url).searchParams;

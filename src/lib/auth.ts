@@ -29,10 +29,10 @@ function hmac(payload: string): string {
   return crypto.createHmac('sha256', getSecret()).update(payload).digest('hex');
 }
 
-/** 生成签名会话 token：`<expiresAtMs>.<hmac>` */
-export function signSession(): { token: string; expiresAt: number } {
+/** 生成签名会话 token：`<expiresAtMs>:<userId>:<role>:<profileId>.<hmac>` */
+export function signSession(userId = 'admin', role: 'admin' | 'user' = 'admin', profileId = 'default'): { token: string; expiresAt: number } {
   const expiresAt = Date.now() + SESSION_TTL_MS;
-  const payload = String(expiresAt);
+  const payload = `${expiresAt}:${userId}:${role}:${profileId}`;
   return { token: `${payload}.${hmac(payload)}`, expiresAt };
 }
 
@@ -47,9 +47,21 @@ export function verifySession(token: string | undefined | null): boolean {
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
-  const expiresAt = parseInt(payload, 10);
+  const expiresAt = parseInt(payload.split(':')[0], 10);
   if (!Number.isFinite(expiresAt)) return false;
   return Date.now() < expiresAt;
+}
+
+export interface SessionIdentity { userId: string; role: 'admin' | 'user'; profileId: string }
+
+export function sessionIdentity(token: string | undefined | null): SessionIdentity | null {
+  if (!token || !verifySession(token)) return null;
+  const dot = token.lastIndexOf('.');
+  const fields = token.slice(0, dot).split(':');
+  // Tokens issued before account support remain valid as the bootstrap administrator.
+  if (fields.length === 1) return { userId: 'admin', role: 'admin', profileId: 'default' };
+  if (fields.length !== 4 || (fields[2] !== 'admin' && fields[2] !== 'user')) return null;
+  return { userId: fields[1], role: fields[2], profileId: fields[3] };
 }
 
 /** 恒定时间比较密码（比较 sha256 摘要避免长度泄漏） */
@@ -63,17 +75,26 @@ export function checkPassword(input: string): boolean {
 
 /** 从请求 Cookie 中解析会话 */
 export function sessionFromCookieHeader(cookieHeader: string | null): boolean {
-  if (!cookieHeader) return false;
+  const token = cookieSessionToken(cookieHeader);
+  return token !== null && sessionIdentity(token) !== null;
+}
+
+export function sessionIdentityFromCookieHeader(cookieHeader: string | null): SessionIdentity | null {
+  return sessionIdentity(cookieSessionToken(cookieHeader));
+}
+
+function cookieSessionToken(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
   const cookies = cookieHeader.split(';');
   for (const c of cookies) {
     const eq = c.indexOf('=');
     if (eq === -1) continue;
     const name = c.slice(0, eq).trim();
     if (name === SESSION_COOKIE) {
-      return verifySession(decodeURIComponent(c.slice(eq + 1).trim()));
+      return decodeURIComponent(c.slice(eq + 1).trim());
     }
   }
-  return false;
+  return null;
 }
 
 // —— 登录速率限制（内存实现，单实例部署足够；多实例可换 Redis） ——

@@ -8,12 +8,21 @@ services:
     image: libretv-jgx:local
     container_name: libretv-jgx
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       - "127.0.0.1:8897:8080"
-    # 无状态服务：观看历史在浏览器 IndexedDB、设置在 localStorage，无需挂载卷
+    # 用户账户与偏好配置保存在服务端，需要持久卷
+    volumes:
+      - libretv-users:/data
     environment:
       # 必填：访问密码（在 .env 中设置，缺失时 compose 启动即报错提醒）
       - PASSWORD=${PASSWORD:?请在 .env 中设置 PASSWORD}
+      - USER_DATA_FILE=/data/users.json
+      # 会话/代理签名密钥（与会话 cookie 的 HMAC 相关，改了会让现有登录失效）
+      - PROXY_SECRET=${PROXY_SECRET:-}
       # 预置直播源：从 .env 的 DEFAULT_LIVE_SOURCES 读取（JSON 数组）
       - DEFAULT_LIVE_SOURCES=${DEFAULT_LIVE_SOURCES:-}
       # 可选：会话/代理签名密钥（多实例部署建议显式设置：openssl rand -hex 32）
@@ -41,3 +50,6 @@ services:
       # - USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36
       # 可选：影视榜单推荐源（60s API）实例地址，官方公共实例有限流
       # - 60S_API_BASE=https://60s.crystelf.top
+
+volumes:
+  libretv-users:

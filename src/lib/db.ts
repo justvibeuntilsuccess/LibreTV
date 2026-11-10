@@ -16,6 +16,8 @@ import { PERSIST_KEY, flushPendingPersist } from './persist-storage';
 export interface HistoryEntry {
   /** 主键：`${sourceKey}_${vodId}` */
   id: string;
+  /** 归属用户 id（历史按账号隔离；旧数据没有该字段，默认不可见） */
+  owner?: string;
   sourceKey: string;
   sourceUrl?: string;
   vodId: string;
@@ -140,9 +142,15 @@ export async function removeHistory(sourceKey: string, vodId: string): Promise<v
   await db.history.delete(`${sourceKey}_${vodId}`);
 }
 
-export async function clearAllHistory(): Promise<void> {
-  // 一并清进度表：否则从历史重新打开时可能取到已清空的旧进度
-  await Promise.all([db.history.clear(), db.progress.clear()]);
+export async function clearAllHistory(owner?: string): Promise<void> {
+  // 指定 owner 时只清该账号的记录，避免多账号共用浏览器时互相清空
+  if (!owner) {
+    // 一并清进度表：否则从历史重新打开时可能取到已清空的旧进度
+    await Promise.all([db.history.clear(), db.progress.clear()]);
+    return;
+  }
+  const rows = await db.history.filter((h) => h.owner === owner).toArray();
+  await db.history.bulkDelete(rows.map((r) => r.id));
 }
 
 export function progressKeyOf(sourceKey: string, vodId: string, episodeIndex: number): string {

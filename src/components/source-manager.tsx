@@ -708,6 +708,7 @@ function CustomProxyInput() {
 
 function HomePanel() {
   const store = useAppStore();
+  const { role } = useAuth();
   return (
     <section>
       <SectionTitle title="首页与内容过滤" />
@@ -716,8 +717,11 @@ function HomePanel() {
           label="内容范围"
           value={store.adultMode}
           onChange={(v) => store.updateSettings({ adultMode: v as AdultMode })}
+          disabled={role !== 'admin'}
           description={
-            store.adultMode === 'only'
+            role !== 'admin'
+              ? '此设置由管理员控制'
+              : store.adultMode === 'only'
               ? '只保留 18+ 源，以及其它源里的伦理片等分类'
               : store.adultMode === 'all'
                 ? '已勾选的源都参与搜索，不过滤分类'
@@ -1095,7 +1099,7 @@ function SourceSubscriptions() {
 /** 配置导入导出（导出受登录门控；导入前先解析预览再确认，避免误覆盖） */
 function ConfigIoPanel() {
   const { toast } = useToast();
-  const { verified, openLogin } = useAuth();
+  const { verified, role, openLogin } = useAuth();
   const [pending, setPending] = useState<{ file: File; summary: string } | null>(null);
 
   const doExport = async () => {
@@ -1130,7 +1134,22 @@ function ConfigIoPanel() {
   const confirmImport = async () => {
     if (!pending) return;
     try {
-      await importConfig(await pending.file.text());
+      let content = await pending.file.text();
+      if (role === 'user') {
+        const config = JSON.parse(content) as { data?: Record<string, string> };
+        const persistedText = config.data?.[PERSIST_KEY];
+        if (persistedText) {
+          const persisted = JSON.parse(persistedText) as { state?: Record<string, unknown> };
+          if (persisted.state) {
+            const adultMode = useAppStore.getState().adultMode;
+            persisted.state.adultMode = adultMode;
+            persisted.state.yellowFilter = adultMode === 'exclude';
+            config.data![PERSIST_KEY] = JSON.stringify(persisted);
+            content = JSON.stringify(config);
+          }
+        }
+      }
+      await importConfig(content);
       setPending(null);
       toast('配置导入成功，即将刷新页面', 'success');
       setTimeout(() => window.location.reload(), 1500);

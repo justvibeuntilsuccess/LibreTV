@@ -4,7 +4,7 @@ import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
   title: {
-    default: 'LibreTV - 免费在线视频搜索与观看平台',
+    default: '肥仔电视台',
     template: '%s - LibreTV',
   },
   description:

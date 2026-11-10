@@ -6,6 +6,8 @@ import { api, onUnauthorized, STATUS_QUERY_KEY } from '@/lib/client-api';
 import { applyEnvPresets } from '@/lib/subscription-sync';
 import type { AuthStatusResponse } from '@/lib/types';
 import { useToast } from './toast';
+import { applyProfileSettings } from '@/lib/profile-settings';
+import { db } from '@/lib/db';
 
 /**
  * 认证上下文：
@@ -18,6 +20,9 @@ type SetupRequired = boolean;
 interface AuthContextValue {
   checked: boolean;
   verified: boolean;
+  role: 'admin' | 'user' | null;
+  /** 当前登录用户 id（本地历史按它隔离；未登录时 null） */
+  userId: string | null;
   /** 服务器未设置 PASSWORD，需要管理员配置 */
   setupRequired: SetupRequired;
   /** /api/status 返回的应用版本（构建时从 package.json 注入） */
@@ -29,6 +34,8 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue>({
   checked: false,
   verified: false,
+  role: null,
+  userId: null,
   setupRequired: false,
   version: null,
   openLogin: () => {},
@@ -42,6 +49,8 @@ export function useAuth(): AuthContextValue {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [checked, setChecked] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [role, setRole] = useState<'admin' | 'user' | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [setupRequired, setSetupRequired] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -56,6 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((s) => {
         if (cancelled) return;
         setVerified(s.verified);
+        setRole(s.user?.role ?? null);
+        setUserId(s.user?.id ?? null);
         setSetupRequired(!s.passwordRequired);
         setVersion(s.version);
         setChecked(true);
@@ -74,10 +85,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const setup = (event as CustomEvent).detail === 'setup';
         setSetupRequired(setup);
         setVerified(false);
+        setRole(null);
+        setUserId(null);
         setModalOpen(true);
       }),
     []
   );
+
+  // 旧版本写入的历史没有 owner 字段：登录后归属到当前账号，
+  // 避免升级成「按账号隔离」后老记录全部消失
+  useEffect(() => {
+    if (!verified || !userId) return;
+    void db.history
+      .filter((h) => !h.owner)
+      .modify({ owner: userId })
+      .catch(() => {});
+  }, [verified, userId]);
 
   const openLogin = useCallback(() => setModalOpen(true), []);
 
@@ -86,6 +109,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await api.logout();
     } finally {
       setVerified(false);
+      setRole(null);
+      setUserId(null);
+      setModalOpen(true);
       toast('已退出登录', 'info');
     }
   }, [toast]);
@@ -100,14 +126,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 预置订阅（DEFAULT_SUBSCRIPTIONS）的首屏同步发生在登录之前，会 401 静默失败，
     // 这里用缓存中的 /api/status 补跑一次（缓存缺失时回落为一次请求）
     try {
-      const cached = queryClient.getQueryData<AuthStatusResponse>(STATUS_QUERY_KEY);
-      const status =
-        cached ??
-        (await queryClient.fetchQuery<AuthStatusResponse>({
-          queryKey: STATUS_QUERY_KEY,
-          queryFn: () => api.status(),
-          staleTime: 0,
-        }));
+      const status = await queryClient.fetchQuery<AuthStatusResponse>({
+        queryKey: STATUS_QUERY_KEY,
+        queryFn: () => api.status(),
+        staleTime: 0,
+      });
+      setRole(status.user?.role ?? null);
+      setUserId(status.user?.id ?? null);
+      if (status.user?.role === 'user') {
+        const profileUserId = status.user.id;
+        const response = await fetch('/api/admin');
+        if (response.ok) {
+          const data = await response.json() as { profile?: { id: string; updatedAt?: number; preferences?: Record<string, unknown> } | null };
+          if (data.profile) applyProfileSettings(data.profile.preferences, data.profile.id, data.profile.updatedAt ?? 1, profileUserId);
+        }
+      }
       if (status) await applyEnvPresets(status);
     } catch {
       // 补拉预置数据失败不影响登录后的正常使用
@@ -115,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [toast, queryClient]);
 
   return (
-    <AuthContext.Provider value={{ checked, verified, setupRequired, version, openLogin, logout }}>
+    <AuthContext.Provider value={{ checked, verified, role, userId, setupRequired, version, openLogin, logout }}>
       {children}
       {modalOpen && (
         <LoginModal
@@ -138,6 +171,7 @@ function LoginModal({
   onClose: () => void;
 }) {
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -159,7 +193,7 @@ function LoginModal({
     setLoading(true);
     setError('');
     try {
-      await api.login(password);
+      await api.login(password, username);
       onSuccess();
     } catch (err) {
       const msg = err instanceof Error ? err.message : '验证失败';
@@ -202,6 +236,13 @@ function LoginModal({
                 submit();
               }}
             >
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="input w-full mb-2"
+                placeholder="用户名（管理员可留空使用旧密码）"
+                autoComplete="username"
+              />
               <input
                 ref={inputRef}
                 type="password"
