@@ -42,6 +42,18 @@ function parseList(data: unknown): BrowseItem[] {
     .filter((i) => i.vodId && i.name);
 }
 
+/** 每页数量：源站支持 pagesize 参数（实测暴风/360/光速/如意均生效） */
+const PAGE_SIZES = [20, 40, 60, 100] as const;
+
+/** 排序：苹果 CMS 的 by / order；不支持 by 的源会忽略，保持源站默认顺序 */
+const SORTS: Record<string, { by?: string; order?: string }> = {
+  default: {},
+  time: { by: 'time', order: 'desc' },
+  add: { by: 'add', order: 'desc' },
+  hits: { by: 'hits', order: 'desc' },
+  score: { by: 'score', order: 'desc' },
+};
+
 /** 按分类浏览：AppleCMS 的 ?ac=videolist&t=<type_id>&pg=<page> */
 export async function GET(req: Request) {
   const guarded = await guardRequest(req);
@@ -52,6 +64,9 @@ export async function GET(req: Request) {
   const t = (sp.get('t') || '').trim();
   const all = t === '' || t === 'all';
   const pg = Math.max(1, Math.min(500, parseInt(sp.get('pg') || '1', 10) || 1));
+  const sizeParam = parseInt(sp.get('size') || '20', 10);
+  const size = (PAGE_SIZES as readonly number[]).includes(sizeParam) ? sizeParam : 20;
+  const sort = SORTS[(sp.get('sort') || 'default').trim()] ? (sp.get('sort') || 'default').trim() : 'default';
 
   if (!/^https?:\/\//.test(base)) {
     return NextResponse.json({ error: '无效的源地址' }, { status: 400 });
@@ -66,9 +81,14 @@ export async function GET(req: Request) {
 
   try {
     // t 缺省 = 该源的全部内容（苹果CMS 不带 t 就是全库列表）
-    const upstream = all
-      ? `${base}?ac=videolist&pg=${pg}`
-      : `${base}?ac=videolist&t=${encodeURIComponent(t)}&pg=${pg}`;
+    const params = new URLSearchParams({ ac: 'videolist', pg: String(pg), pagesize: String(size) });
+    if (!all) params.set('t', t);
+    const picked = SORTS[sort];
+    if (picked.by) {
+      params.set('by', picked.by);
+      params.set('order', picked.order || 'desc');
+    }
+    const upstream = `${base}?${params.toString()}`;
     const data = await fetchUpstreamJson<Record<string, unknown>>(upstream, {
       timeoutMs: 12000,
       headers: cmsRequestHeaders(),

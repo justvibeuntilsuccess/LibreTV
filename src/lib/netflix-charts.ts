@@ -122,7 +122,7 @@ function stripSeason(title: string): string {
 }
 
 /** 官方榜的标题在 JustWatch 里搜一次，拿海报 + 中文名 */
-async function lookupMeta(title: string): Promise<{ poster?: string; zh?: string }> {
+async function lookupMeta(title: string): Promise<{ poster?: string; zh?: string; year?: string }> {
   const candidates = [title, title.replace(/:\s*[^:]+$/, '')].filter(
     (t, i, arr) => t && arr.indexOf(t) === i
   );
@@ -131,7 +131,10 @@ async function lookupMeta(title: string): Promise<{ poster?: string; zh?: string
       const edges = await jwQuery({ searchQuery: candidate, packages: ['nfx'] }, 1);
       const node = edges[0]?.node;
       const poster = renderPoster(node?.content?.posterUrl);
-      if (poster) return { poster, zh: node?.zh?.title };
+      if (poster) {
+        const y = node?.content?.originalReleaseYear;
+        return { poster, zh: node?.zh?.title, year: y ? String(y) : undefined };
+      }
     } catch {
       /* 下一候选 */
     }
@@ -148,6 +151,7 @@ async function fetchOfficial(kind: 'tv' | 'films'): Promise<DoubanItem[]> {
     id: `nfx_${kind}_${i + 1}`,
     title,
     cover: metas[i]?.poster || '',
+    year: metas[i]?.year,
     isTv: kind === 'tv',
     searchTitle: stripSeason(metas[i]?.zh || title),
   }));
@@ -165,6 +169,7 @@ async function fetchGenre(genre: string): Promise<DoubanItem[]> {
         id: edge.node?.id ? `jw_${edge.node.id}` : `jw_${genre}_${i}`,
         title,
         cover,
+        year: content?.originalReleaseYear ? String(content.originalReleaseYear) : undefined,
         isTv: false,
         searchTitle: stripSeason(edge.node?.zh?.title || title),
       } as DoubanItem;

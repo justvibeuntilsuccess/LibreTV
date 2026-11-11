@@ -54,6 +54,8 @@ export interface DoubanItem {
   cover: string;
   rating?: string;
   isTv?: boolean;
+  /** 发行年份（卡片标题后面显示为「标题 (2024)」） */
+  year?: string;
   /** 点卡片时实际拿去搜的关键词（Netflix 英文名需要换成豆瓣中文名） */
   searchTitle?: string;
 }

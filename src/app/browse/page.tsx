@@ -22,6 +22,16 @@ interface Item {
   typeName?: string;
 }
 
+const PAGE_SIZES = [20, 40, 60, 100];
+
+const SORT_OPTIONS = [
+  { id: 'default', label: '默认排序' },
+  { id: 'time', label: '最近更新' },
+  { id: 'add', label: '最新入库' },
+  { id: 'hits', label: '最多播放' },
+  { id: 'score', label: '评分最高' },
+];
+
 export default function BrowsePage() {
   const envSources = useAppStore((s) => s.envSources);
   const customAPIs = useAppStore((s) => s.customAPIs);
@@ -44,6 +54,8 @@ export default function BrowsePage() {
   const [items, setItems] = useState<Item[]>([]);
   const [page, setPage] = useState(1);
   const [pagecount, setPagecount] = useState(1);
+  const [size, setSize] = useState(20);
+  const [sort, setSort] = useState('default');
   const [loadingCats, setLoadingCats] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -57,6 +69,10 @@ export default function BrowsePage() {
     if (sp.get('t')) pendingCat.current = sp.get('t');
     const p = parseInt(sp.get('pg') || '1', 10);
     if (p > 1) setPage(p);
+    const sz = parseInt(sp.get('size') || '20', 10);
+    if (PAGE_SIZES.includes(sz)) setSize(sz);
+    const st = sp.get('sort') || '';
+    if (SORT_OPTIONS.some((o) => o.id === st)) setSort(st);
     setReady(true);
   }, []);
 
@@ -71,8 +87,10 @@ export default function BrowsePage() {
     if (!ready || !source || !cat) return;
     const qs = new URLSearchParams({ source: source.key, t: cat });
     if (page > 1) qs.set('pg', String(page));
+    if (size !== 20) qs.set('size', String(size));
+    if (sort !== 'default') qs.set('sort', sort);
     window.history.replaceState(null, '', `/browse?${qs.toString()}`);
-  }, [ready, source, cat, page]);
+  }, [ready, source, cat, page, size, sort]);
 
   // 换源 → 重新拉分类（分类永远来自源的 ac=list，新源无需改代码）
   useEffect(() => {
@@ -121,7 +139,7 @@ export default function BrowsePage() {
     (async () => {
       try {
         const res = await fetch(
-          `/api/browse?url=${encodeURIComponent(source.url)}&t=${encodeURIComponent(cat)}&pg=${page}`
+          `/api/browse?url=${encodeURIComponent(source.url)}&t=${encodeURIComponent(cat)}&pg=${page}&size=${size}&sort=${sort}`
         );
         const data = await res.json();
         if (cancelled) return;
@@ -144,7 +162,7 @@ export default function BrowsePage() {
     return () => {
       cancelled = true;
     };
-  }, [ready, source?.url, cat, page, adultMode]);
+  }, [ready, source?.url, cat, page, size, sort, adultMode]);
 
   const pickCat = (id: string) => {
     setCat(id);
@@ -180,6 +198,44 @@ export default function BrowsePage() {
               </option>
             ))}
           </select>
+
+          <label className="flex items-center gap-1.5 text-xs text-faint">
+            每页
+            <select
+              aria-label="每页数量"
+              value={size}
+              onChange={(e) => {
+                setSize(Number(e.target.value));
+                setPage(1);
+              }}
+              className="bg-surface border border-line rounded-lg px-2 py-2 text-sm text-content"
+            >
+              {PAGE_SIZES.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center gap-1.5 text-xs text-faint">
+            排序
+            <select
+              aria-label="排序方式"
+              value={sort}
+              onChange={(e) => {
+                setSort(e.target.value);
+                setPage(1);
+              }}
+              className="bg-surface border border-line rounded-lg px-2 py-2 text-sm text-content"
+            >
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div ref={chipsRef} className="flex gap-2 overflow-x-auto pb-3 mb-4 -mx-1 px-1">
@@ -245,10 +301,11 @@ export default function BrowsePage() {
                     </span>
                   )}
                 </div>
-                <p className="mt-2 text-sm leading-snug line-clamp-2">{it.name}</p>
-                <p className="text-xs text-faint truncate">
-                  {[it.year, it.typeName].filter(Boolean).join(' · ')}
+                <p className="mt-2 text-sm leading-snug line-clamp-2">
+                  {it.name}
+                  {it.year && <span className="text-faint font-normal"> ({it.year})</span>}
                 </p>
+                {it.typeName && <p className="text-xs text-faint truncate">{it.typeName}</p>}
               </Link>
             ))}
           </div>

@@ -86,6 +86,7 @@ const DIRECT_COUNT = 20;
 interface DoubanWeeklyRaw {
   id?: number | string;
   title?: string;
+  year?: number | string;
   rating?: number;
   cover_proxy?: string;
   cover?: string;
@@ -115,6 +116,7 @@ interface DoubanPic {
 interface DoubanDirectRaw {
   id?: number | string;
   title?: string;
+  year?: number | string;
   rating?: number | { value?: number } | null;
   cover_url?: string | null;
   cover?: string | DoubanCover | null;
@@ -149,6 +151,7 @@ export function doubanDirectToItem(raw: DoubanDirectRaw, isTv: boolean): DoubanI
     title: raw.title,
     cover,
     rating: rating ? String(rating) : undefined,
+    year: raw.year ? String(raw.year) : undefined,
     isTv,
   };
 }
@@ -164,6 +167,7 @@ export function doubanWeeklyToItem(raw: DoubanWeeklyRaw, isTv: boolean): DoubanI
     title: raw.title,
     cover,
     rating: raw.rating && raw.rating > 0 ? String(raw.rating) : undefined,
+    year: raw.year ? String(raw.year) : undefined,
     isTv,
   };
 }

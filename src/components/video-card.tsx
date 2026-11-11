@@ -471,12 +471,12 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
 
         <div className="p-2.5 flex flex-col flex-grow min-w-0">
           <div className="flex-grow">
-            <h3 className="font-semibold text-sm text-content mb-1.5 line-clamp-2" title={item.name}>
+            <h3 className="font-semibold text-sm text-content mb-1.5 line-clamp-2" title={`${item.name}${item.year ? ` (${item.year})` : ''}`}>
               {item.name}
+              {item.year && <span className="text-faint font-normal"> ({item.year})</span>}
             </h3>
             <div className="flex flex-wrap gap-1 mb-1.5">
               {item.typeName && <span className="tag bg-accent/15 text-accent">{item.typeName}</span>}
-              {item.year && <span className="tag bg-purple-500/15 text-purple-600 dark:text-purple-300">{item.year}</span>}
             </div>
             <p className="text-xs text-muted line-clamp-2 mb-2">{formatRemarks(item.remarks) || '暂无介绍'}</p>
           </div>
@@ -490,7 +490,7 @@ export function VideoCard({ item, onClick }: { item: SearchResultItem; onClick: 
 }
 
 /** 豆瓣推荐卡片（无来源徽章，点击直接搜索） */
-export function DoubanCard({ item, onClick }: { item: { title: string; cover: string; rating?: string }; onClick: () => void }) {
+export function DoubanCard({ item, onClick }: { item: { title: string; cover: string; rating?: string; year?: string }; onClick: () => void }) {
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
   const [imgFailed, setImgFailed] = useState(false);
@@ -534,8 +534,9 @@ export function DoubanCard({ item, onClick }: { item: { title: string; cover: st
         )}
       </div>
       <div className="p-2">
-        <div className="text-xs font-medium text-content truncate" title={item.title}>
+        <div className="text-xs font-medium text-content truncate" title={`${item.title}${item.year ? ` (${item.year})` : ''}`}>
           {item.title}
+          {item.year && <span className="text-faint font-normal"> ({item.year})</span>}
         </div>
       </div>
     </div>
@@ -547,7 +548,7 @@ export function FeaturedDoubanCard({
   item,
   onClick,
 }: {
-  item: { title: string; cover: string; rating?: string };
+  item: { title: string; cover: string; rating?: string; year?: string };
   onClick: () => void;
 }) {
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
@@ -590,6 +591,7 @@ export function FeaturedDoubanCard({
           </div>
           <h3 className="text-3xl sm:text-5xl lg:text-6xl font-semibold tracking-[-.04em] leading-[1.05] drop-shadow-lg">
             {item.title}
+            {item.year && <span className="text-white/60 text-[.55em] font-normal tracking-normal"> ({item.year})</span>}
           </h3>
           <div className="mt-3 flex items-center gap-3 text-sm text-white/75">
             {item.rating && <span className="text-amber-300">★ {item.rating}</span>}
